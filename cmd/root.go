@@ -37,6 +37,13 @@ var rootCmd = &cobra.Command{
 			log.Panicf("Error getting stdout for initial run. %v", err)
 		}
 		go io.Copy(os.Stdout, out)
+
+		stdE, err := runExecCmd.StderrPipe()
+		if err != nil {
+			log.Panicf("Error getting stderr for initla run. %v", err)
+		}
+		go io.Copy(os.Stderr, stdE)
+
 		if err := runExecCmd.Start(); err != nil {
 			log.Panicf("Error starting initially. %v", err)
 		}

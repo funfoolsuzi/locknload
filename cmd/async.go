@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
@@ -38,7 +39,6 @@ EventsLoop:
 				continue
 			}
 
-			log.Println("Event", evt)      // TODO: dele
 			if evt.Op == fsnotify.Create { // something has been created
 				if isDir, err := isPathDir(evt.Name); err != nil { // Failed to detect whether newly created file/dir is dir. crash it
 					log.Printf("Error determining newlly added file/dir(%s) is directory. %v", evt.Name, err)
@@ -52,8 +52,8 @@ EventsLoop:
 				}
 			}
 
-			if evt.Name[len(evt.Name)-3:] != ".go" {
-				// non-go file change, skip!
+			if evt.Op&fsnotify.Remove != fsnotify.Remove && evt.Name[len(evt.Name)-3:] != ".go" {
+				// if this change is not a delete or doesn't have ".go", skip!
 				continue
 			}
 
@@ -139,9 +139,15 @@ func restart() {
 	}
 	go io.Copy(os.Stdout, output)
 
+	stdE, err := runExecCmd.StderrPipe()
+	if err != nil {
+		log.Panicf("Error getting stderr for initla run. %v", err)
+	}
+	go io.Copy(os.Stderr, stdE)
+
 	log.Printf("Running: %v", runExecCmd.Args)
 	if err = runExecCmd.Start(); err != nil {
 		log.Panicf("Error restarting app. %v", err)
 	}
-	log.Println("App restarted")
+	log.Printf("App restarted. current number of goroutines: %d", runtime.NumGoroutine())
 }
